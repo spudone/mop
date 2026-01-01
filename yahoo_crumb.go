@@ -21,10 +21,8 @@ const (
 	euConsentURL = "https://consent.yahoo.com/v2/collectConsent?sessionId="
 )
 
-func fetchCrumb(client *http.Client, cookies string) string {
-	if client == nil {
-		client = &http.Client{}
-	}
+func fetchCrumb(cookies string) string {
+	client := http.Client{}
 	request, err := http.NewRequest(http.MethodGet, crumbURL, nil)
 	if err != nil {
 		panic(err)
@@ -59,12 +57,9 @@ func fetchCrumb(client *http.Client, cookies string) string {
 	return string(body)
 }
 
-func fetchCookies(client *http.Client) string {
+func fetchCookies() string {
 	jar, _ := cookiejar.New(nil)
-	if client == nil {
-		client = &http.Client{}
-	}
-	client.Jar = jar
+	client := &http.Client{Jar: jar}
 
 	// Get the session ID from the first request
 	request, err := http.NewRequest(http.MethodGet, cookieURL, nil)
