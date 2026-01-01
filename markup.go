@@ -150,9 +150,10 @@ func (markup *Markup) process(tag string, open bool) bool {
 				}
 			}
 		}
+		return true
 	}
 
-	return true
+	return false
 }
 
 // supportedTags returns regular expression that matches all possible tags
