@@ -55,15 +55,22 @@ type Quotes struct {
 	profile *Profile // Pointer to Profile.
 	stocks  []Stock  // Array of stock quote data.
 	errors  string   // Error string if any.
+	httpClient *http.Client // Client to use for http requests
 }
 
 // Sets the initial values and returns new Quotes struct.
-func NewQuotes(market *Market, profile *Profile) *Quotes {
-	return &Quotes{
+func NewQuotes(market *Market, profile *Profile, httpClient ...*http.Client) *Quotes {
+	quotes := &Quotes{
 		market:  market,
 		profile: profile,
 		errors:  ``,
 	}
+	if len(httpClient) > 0 {
+		quotes.httpClient = httpClient[0]
+	} else {
+		quotes.httpClient = &http.Client{}
+	}
+	return quotes
 }
 
 // Fetch the latest stock quotes and parse raw fetched data into array of
@@ -81,7 +88,10 @@ func (quotes *Quotes) Fetch() (self *Quotes) {
 
 		url := fmt.Sprintf(quotesURL, quotes.market.crumb, strings.Join(quotes.profile.Tickers, `,`))
 
-		client := http.Client{}
+		client := quotes.httpClient
+		if client == nil {
+			client = &http.Client{}
+		}
 		request, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
 			panic(err)

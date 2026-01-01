@@ -41,19 +41,25 @@ type Market struct {
 	Yen       MarketIndex
 	Euro      MarketIndex
 	Gold      MarketIndex
-	errors    string // Error(s), if any.
-	url       string // URL with symbols to fetch data
-	cookies   string // cookies for auth
-	crumb     string // crumb for the cookies, to be applied as a query param
+	errors    string       // Error(s), if any.
+	url       string       // URL with symbols to fetch data
+	cookies   string       // cookies for auth
+	crumb     string       // crumb for the cookies, to be applied as a query param
+	httpClient *http.Client // Client to use for http requests
 }
 
 // Returns new initialized Market struct.
-func NewMarket() *Market {
+func NewMarket(httpClient ...*http.Client) *Market {
 	market := &Market{}
 	market.IsClosed = false
+	if len(httpClient) > 0 {
+		market.httpClient = httpClient[0]
+	} else {
+		market.httpClient = &http.Client{}
+	}
 
-	market.cookies = fetchCookies()
-	market.crumb = fetchCrumb(market.cookies)
+	market.cookies = fetchCookies(market.httpClient)
+	market.crumb = fetchCrumb(market.httpClient, market.cookies)
 
 	// Construct URL with query parameters using url.Values
 	params := url.Values{}
@@ -84,7 +90,10 @@ func (market *Market) Fetch() (self *Market) {
 		}
 	}()
 
-	client := http.Client{}
+	client := market.httpClient
+	if client == nil {
+		client = &http.Client{}
+	}
 	request, err := http.NewRequest(http.MethodGet, market.url, nil)
 	if err != nil {
 		panic(err)
