@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2024 by Michael Dvorkin and contributors. All Rights Reserved.
+// Copyright (c) 2013-2026 by Michael Dvorkin and contributors. All Rights Reserved.
 // Use of this source code is governed by a MIT-style license that can
 // be found in the LICENSE file.
 
@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/Knetic/govaluate"
@@ -43,6 +44,9 @@ type Profile struct {
 		Time       string
 		Default    string
 		RowShading string
+		Custom1    int
+		Custom2    int
+		Custom3    int
 	}
 	ShowTimestamp    bool                           // Show or hide current time in the top right of the screen
 	filterExpression *govaluate.EvaluableExpression // The filter as a govaluate expression
@@ -72,6 +76,9 @@ func IsSupportedColor(colorName string) bool {
 		"lightgray":
 		return true
 	}
+	if val, err := strconv.Atoi(colorName); err == nil && val >= 1 && val <= 255 {
+		return true
+	}
 	return false
 }
 
@@ -92,7 +99,7 @@ func NewProfile(filename string) (*Profile, error) {
 			InitColor(&profile.Colors.Default, defaultColor)
 			InitColor(&profile.Colors.RowShading, defaultColor)
 
-			profile.SetFilter(profile.Filter)
+			err = profile.SetFilter(profile.Filter)
 		}
 	} else {
 		profile.InitDefaultProfile()
@@ -215,18 +222,19 @@ func (profile *Profile) Regroup() error {
 }
 
 // SetFilter creates a govaluate.EvaluableExpression.
-func (profile *Profile) SetFilter(filter string) {
+func (profile *Profile) SetFilter(filter string) error {
 	if len(filter) > 0 {
 		var err error
 		profile.filterExpression, err = govaluate.NewEvaluableExpression(filter)
 		if err != nil {
-			panic(err)
+			return err
 		}
 	} else if len(filter) == 0 && profile.filterExpression != nil {
 		profile.filterExpression = nil
 	}
 
 	profile.Filter = filter
+	return nil
 }
 
 func (profile *Profile) ToggleTimestamp() error {

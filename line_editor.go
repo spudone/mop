@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2024 by Michael Dvorkin and contributors. All Rights Reserved.
+// Copyright (c) 2013-2026 by Michael Dvorkin and contributors. All Rights Reserved.
 // Use of this source code is governed by a MIT-style license that can
 // be found in the LICENSE file.
 
@@ -199,7 +199,12 @@ func (editor *LineEditor) execute() *LineEditor {
 			editor.input = editor.quotes.profile.Filter
 		}
 
-		editor.quotes.profile.SetFilter(editor.input)
+		if err := editor.quotes.profile.SetFilter(editor.input); err != nil {
+			editor.screen.DrawLine(0, 3, `<red>Invalid filter: `+err.Error()+`</>`+` `)
+			termbox.Flush()
+			return editor
+		}
+		editor.screen.Draw(editor.quotes)
 	case 'F':
 		editor.quotes.profile.SetFilter("")
 	}

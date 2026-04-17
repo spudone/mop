@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2024 by Michael Dvorkin and contributors. All Rights Reserved.
+// Copyright (c) 2013-2026 by Michael Dvorkin and contributors. All Rights Reserved.
 // Use of this source code is governed by a MIT-style license that can
 // be found in the LICENSE file.
 
@@ -22,7 +22,7 @@ import (
 // File name in user's home directory where we store the settings.
 const defaultProfile = `.moprc`
 
-const help = `Mop v1.0.0 -- Copyright (c) 2013-2023 by Michael Dvorkin and contributors. All Rights Reserved.
+const help = `Mop v1.0.0 -- Copyright (c) 2013-2026 by Michael Dvorkin and contributors. All Rights Reserved.
 NO WARRANTIES OF ANY KIND WHATSOEVER. SEE THE LICENSE FILE FOR DETAILS.
 
 <u>Command</u>    <u>Description                                </u>
@@ -53,6 +53,7 @@ func mainLoop(screen *mop.Screen, profile *mop.Profile) {
 	var columnEditor *mop.ColumnEditor
 
 	termbox.SetInputMode(termbox.InputMouse)
+	termbox.SetOutputMode(termbox.Output256)
 
 	// use buffered channel for keyboard event queue
 	keyboardQueue := make(chan termbox.Event, 128)
@@ -79,8 +80,14 @@ func mainLoop(screen *mop.Screen, profile *mop.Profile) {
 		}
 	}()
 
-	market := mop.NewMarket()
-	quotes := mop.NewQuotes(market, profile)
+	provider := mop.NewYahooProvider()
+	market := mop.NewMarket(provider)
+	quotes := mop.NewQuotes(market, profile, provider)
+	quotesResultQueue := make(chan *mop.Quotes)
+	marketResultQueue := make(chan *mop.Market)
+
+	market = market.Fetch()
+	quotes = quotes.Fetch()
 	screen.Draw(market)
 	screen.Draw(quotes)
 
@@ -100,7 +107,8 @@ loop:
 						lineEditor = mop.NewLineEditor(screen, quotes)
 						lineEditor.Prompt(event.Ch)
 					} else if event.Ch == 'F' {
-						profile.SetFilter("")
+						_ = profile.SetFilter("")
+						screen.Draw(quotes)
 					} else if event.Ch == 'o' || event.Ch == 'O' {
 						columnEditor = mop.NewColumnEditor(screen, quotes)
 					} else if event.Ch == 'g' || event.Ch == 'G' {
@@ -183,13 +191,28 @@ loop:
 
 		case <-quotesQueue.C:
 			if !showingHelp && !paused && len(keyboardQueue) == 0 {
-				go quotes.Fetch()
+				go func() {
+					quotesResultQueue <- quotes.Fetch()
+				}()
+			}
+
+		case q := <-quotesResultQueue:
+			if !showingHelp && !paused && len(keyboardQueue) == 0 {
+				quotes = q
 				redrawQuotesFlag = true
 			}
 
 		case <-marketQueue.C:
 			if !showingHelp && !paused {
-				screen.Draw(market)
+				go func() {
+					marketResultQueue <- market.Fetch()
+				}()
+			}
+
+		case m := <-marketResultQueue:
+			if !showingHelp && !paused {
+				market = m
+				redrawMarketFlag = true
 			}
 		}
 
@@ -208,7 +231,8 @@ loop:
 func main() {
 	usr, err := user.Current()
 	if err != nil {
-		panic(err)
+		fmt.Fprintf(os.Stderr, "Error getting current user: %v\n", err)
+		os.Exit(1)
 	}
 
 	profileName := flag.String("profile", path.Join(usr.HomeDir, defaultProfile), "path to profile")
@@ -237,7 +261,11 @@ func main() {
 			}
 		}
 	}
-	screen := mop.NewScreen(profile)
+	screen, err := mop.NewScreen(profile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error initializing screen: %v\n", err)
+		os.Exit(1)
+	}
 	defer screen.Close()
 
 	mainLoop(screen, profile)

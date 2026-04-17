@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2024 by Michael Dvorkin and contributors. All Rights Reserved.
+// Copyright (c) 2013-2026 by Michael Dvorkin and contributors. All Rights Reserved.
 // Use of this source code is governed by a MIT-style license that can
 // be found in the LICENSE file.
 
@@ -77,10 +77,6 @@ func NewLayout() *Layout {
 // Market merges given market data structure with the market template and
 // returns formatted string that includes highlighting markup.
 func (layout *Layout) Market(market *Market) string {
-	if ok, err := market.Ok(); !ok { // If there was an error fetching market data...
-		return err // then simply return the error string.
-	}
-
 	highlight(market.Dow, market.Sp500, market.Nasdaq,
 		market.Tokyo, market.HongKong, market.London, market.Frankfurt,
 		market.Yield, market.Oil, market.Euro, market.Yen, market.Gold)
@@ -95,18 +91,25 @@ func (layout *Layout) Market(market *Market) string {
 // all the necessary markup.
 func (layout *Layout) Quotes(quotes *Quotes) string {
 	zonename, _ := time.Now().In(time.Local).Zone()
-	if ok, err := quotes.Ok(); !ok { // If there was an error fetching stock quotes...
-		return err // then simply return the error string.
+
+	errStr := quotes.errors
+	if quotes.market != nil && quotes.market.errors != "" {
+		if errStr != "" {
+			errStr += " | "
+		}
+		errStr += quotes.market.errors
 	}
 
 	vars := struct {
 		Now    string  // Current timestamp.
 		Header string  // Formatted header line.
 		Stocks []Stock // List of formatted stock quotes.
+		Errors string  // Formatted errors.
 	}{
 		time.Now().Format(`3:04:05pm ` + zonename),
 		layout.Header(quotes.profile),
 		layout.prettify(quotes),
+		errStr,
 	}
 
 	buffer := new(bytes.Buffer)
@@ -162,6 +165,9 @@ func (layout *Layout) prettify(quotes *Quotes) []Stock {
 	//
 	for i, stock := range quotes.stocks {
 		pretty[i].Direction = stock.Direction
+		pretty[i].RowColor = stock.RowColor
+		pretty[i].PreOpenColor = stock.PreOpenColor
+		pretty[i].AfterHoursColor = stock.AfterHoursColor
 		//
 		// Iterate over the list of stock columns. For each column name:
 		// - Get current column value.
@@ -236,11 +242,11 @@ func buildMarketTemplate() *template.Template {
 // -----------------------------------------------------------------------------
 func buildQuotesTemplate() *template.Template {
 	markup := `<right><time>{{.Now}}</></right>
-
-
+{{if .Errors}}<loss>{{.Errors}}</>{{else}}
+{{end}}
 
 <header>{{.Header}}</>
-{{range.Stocks}}{{if eq .Direction 1}}<gain>{{else if eq .Direction -1}}<loss>{{end}}{{.Ticker}}{{.LastTrade}}{{.Change}}{{.ChangePct}}{{.Open}}{{.Low}}{{.High}}{{.Low52}}{{.High52}}{{.Volume}}{{.AvgVolume}}{{.PeRatio}}{{.Dividend}}{{.Yield}}{{.MarketCap}}{{.PreOpen}}{{.AfterHours}}</>
+{{range.Stocks}}{{if ne .RowColor ""}}<{{.RowColor}}>{{end}}{{.Ticker}}{{.LastTrade}}{{.Change}}{{.ChangePct}}{{.Open}}{{.Low}}{{.High}}{{.Low52}}{{.High52}}{{.Volume}}{{.AvgVolume}}{{.PeRatio}}{{.Dividend}}{{.Yield}}{{.MarketCap}}</>{{if ne .PreOpenColor ""}}<{{.PreOpenColor}}>{{end}}{{.PreOpen}}</>{{if ne .AfterHoursColor ""}}<{{.AfterHoursColor}}>{{end}}{{.AfterHours}}</>
 {{end}}`
 
 	return template.Must(template.New(`quotes`).Parse(markup))
@@ -371,7 +377,7 @@ func percent(str ...string) string {
 		}
 		str[0] = split[0] + "." + split[1][0:digits]
 	}
-	if str[0][len(str)-1] != '%' {
+	if str[0][len(str[0])-1] != '%' {
 		str[0] += `%`
 	}
 	return str[0]

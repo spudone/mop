@@ -1,10 +1,11 @@
-// Copyright (c) 2013-2024 by Michael Dvorkin and contributors. All Rights Reserved.
+// Copyright (c) 2013-2026 by Michael Dvorkin and contributors. All Rights Reserved.
 // Use of this source code is governed by a MIT-style license that can
 // be found in the LICENSE file.
 
 package mop
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -21,11 +22,13 @@ const (
 	euConsentURL = "https://consent.yahoo.com/v2/collectConsent?sessionId="
 )
 
-func fetchCrumb(cookies string) string {
+// fetchCrumb retrieves a unique "crumb" string from Yahoo Finance, which is
+// required as a security parameter for API requests.
+func fetchCrumb(cookies string) (string, error) {
 	client := http.Client{}
 	request, err := http.NewRequest(http.MethodGet, crumbURL, nil)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 
 	request.Header = http.Header{
@@ -45,26 +48,29 @@ func fetchCrumb(cookies string) string {
 
 	response, err := client.Do(request)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 	defer response.Body.Close()
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 
-	return string(body)
+	return string(body), nil
 }
 
-func fetchCookies() string {
+// fetchCookies performs the initial handshake with Yahoo Finance to obtain
+// the necessary authentication cookies (like the A1 cookie). It handles
+// redirected consent flows if necessary.
+func fetchCookies() (string, error) {
 	jar, _ := cookiejar.New(nil)
 	client := &http.Client{Jar: jar}
 
 	// Get the session ID from the first request
 	request, err := http.NewRequest(http.MethodGet, cookieURL, nil)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 
 	request.Header = http.Header{
@@ -82,14 +88,14 @@ func fetchCookies() string {
 
 	response, err := client.Do(request)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 	defer response.Body.Close()
 
 	cookies := jar.Cookies(response.Request.URL)
 	cookieA1 := getA1Cookie(cookies)
 	if cookieA1 != "" {
-		return cookieA1
+		return cookieA1, nil
 	}
 
 	// first pass failed - try EU shenanigans
@@ -107,7 +113,7 @@ func fetchCookies() string {
 	gucsCookieString = strings.TrimSuffix(gucsCookieString, "; ")
 
 	if len(gucsCookie) == 0 {
-		panic("fetchCookies: no gucsCookie found")
+		return "", fmt.Errorf("fetchCookies: no gucsCookie found")
 	}
 
 	form := url.Values{}
@@ -117,7 +123,7 @@ func fetchCookies() string {
 	form.Add("agree", "agree")
 	request2, err := http.NewRequest(http.MethodPost, euConsentURL+sessionID, strings.NewReader(form.Encode()))
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 
 	contentLength := strconv.FormatInt(int64(len(form.Encode())), 10)
@@ -144,19 +150,21 @@ func fetchCookies() string {
 
 	response2, err := client.Do(request2)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 	defer response2.Body.Close()
 
 	cookies = jar.Cookies(response2.Request.URL)
 	cookieA1 = getA1Cookie(cookies)
 	if cookieA1 != "" {
-		return cookieA1
+		return cookieA1, nil
 	} else {
-		panic("fetchCookies: failed to obtain A1 cookie")
+		return "", fmt.Errorf("fetchCookies: failed to obtain A1 cookie")
 	}
 }
 
+// getA1Cookie is a helper that extracts the "A1" cookie from a slice of
+// http.Cookies and formats it as a string.
 func getA1Cookie(cookies []*http.Cookie) string {
 	for _, cookie := range cookies {
 		if cookie.Name == "A1" {

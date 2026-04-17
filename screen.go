@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2024 by Michael Dvorkin and contributors. All Rights Reserved.
+// Copyright (c) 2013-2026 by Michael Dvorkin and contributors. All Rights Reserved.
 // Use of this source code is governed by a MIT-style license that can
 // be found in the LICENSE file.
 
@@ -31,9 +31,9 @@ type Screen struct {
 // Initializes Termbox, creates screen along with layout and markup, and
 // calculates current screen dimensions. Once initialized the screen is
 // ready for display.
-func NewScreen(profile *Profile) *Screen {
+func NewScreen(profile *Profile) (*Screen, error) {
 	if err := termbox.Init(); err != nil {
-		panic(err)
+		return nil, err
 	}
 	screen := &Screen{}
 	screen.layout = NewLayout()
@@ -41,7 +41,7 @@ func NewScreen(profile *Profile) *Screen {
 	screen.profile = profile
 	screen.offset = 0
 
-	return screen.Resize()
+	return screen.Resize(), nil
 }
 
 // Close gets called upon program termination to close the Termbox.
@@ -142,10 +142,16 @@ func (screen *Screen) Draw(objects ...interface{}) *Screen {
 		switch ptr := ptr.(type) {
 		case *Market:
 			object := ptr
-			screen.draw(screen.layout.Market(object.Fetch()), false)
+			if object.MarketData == nil {
+				object.Fetch()
+			}
+			screen.draw(screen.layout.Market(object), false)
 		case *Quotes:
 			object := ptr
-			screen.draw(screen.layout.Quotes(object.Fetch()), true)
+			if object.stocks == nil {
+				object.Fetch()
+			}
+			screen.draw(screen.layout.Quotes(object), true)
 		case time.Time:
 			timestamp := ptr.Format(`3:04:05pm ` + zonename)
 			screen.DrawLineInverted(0, 0, `<right><time>`+timestamp+`</></right>`)
@@ -272,7 +278,7 @@ func (screen *Screen) draw(str string, offset bool) {
 				}
 			} else {
 				// only write the necessary lines
-				if row <= len(allLines) &&
+				if row < len(allLines) &&
 					row > screen.headerLine {
 					screen.DrawLineFlush(0, row-screen.offset, allLines[row], false)
 				} else if row > len(allLines)+1 {
