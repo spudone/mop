@@ -225,16 +225,54 @@ func (profile *Profile) Regroup() error {
 func (profile *Profile) SetFilter(filter string) error {
 	if len(filter) > 0 {
 		var err error
-		profile.filterExpression, err = govaluate.NewEvaluableExpression(filter)
+		expr, err := govaluate.NewEvaluableExpression(filter)
 		if err != nil {
+			profile.filterExpression = nil
 			return err
 		}
+
+		if err := validateFilter(expr); err != nil {
+			profile.filterExpression = nil
+			return err
+		}
+
+		profile.filterExpression = expr
 	} else if len(filter) == 0 && profile.filterExpression != nil {
 		profile.filterExpression = nil
 	}
 
 	profile.Filter = filter
 	return nil
+}
+
+// validateFilter performs a dry run evaluation to catch runtime logic errors.
+func validateFilter(expr *govaluate.EvaluableExpression) error {
+	dummy := map[string]interface{}{
+		"ticker":        "",
+		"market":        "",
+		"currency":      "",
+		"last":          0.0,
+		"change":        0.0,
+		"changePercent": 0.0,
+		"open":          0.0,
+		"low":           0.0,
+		"high":          0.0,
+		"low52":         0.0,
+		"high52":        0.0,
+		"volume":        0.0,
+		"avgVolume":     0.0,
+		"pe":            0.0,
+		"peX":           0.0,
+		"dividend":      0.0,
+		"yield":         0.0,
+		"mktCap":        0.0,
+		"mktCapX":       0.0,
+		"advancing":     0.0,
+		"direction":     0,
+	}
+
+	_, err := expr.Evaluate(dummy)
+	return err
 }
 
 func (profile *Profile) ToggleTimestamp() error {

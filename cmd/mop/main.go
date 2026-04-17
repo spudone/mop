@@ -107,13 +107,13 @@ loop:
 						lineEditor = mop.NewLineEditor(screen, quotes)
 						lineEditor.Prompt(event.Ch)
 					} else if event.Ch == 'F' {
-						_ = profile.SetFilter("")
-						screen.Draw(quotes)
+						profile.SetFilter("")
+						redrawQuotesFlag = true
 					} else if event.Ch == 'o' || event.Ch == 'O' {
 						columnEditor = mop.NewColumnEditor(screen, quotes)
 					} else if event.Ch == 'g' || event.Ch == 'G' {
 						if profile.Regroup() == nil {
-							screen.Draw(quotes)
+							redrawQuotesFlag = true
 						}
 					} else if event.Ch == 'p' || event.Ch == 'P' {
 						paused = !paused
