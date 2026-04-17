@@ -58,7 +58,7 @@ func NewQuotes(market *Market, profile *Profile, provider StockProvider) *Quotes
 // Fetch the latest stock quotes and parse raw fetched data into array of
 // []Stock structs.
 func (quotes *Quotes) Fetch() (self *Quotes) {
-	self = quotes // <-- This ensures we return correct quotes after recover() from panic().
+	self = quotes
 	if quotes.isReady() {
 		stocks, err := quotes.provider.FetchQuotes(quotes.profile.Tickers)
 		if err != nil {

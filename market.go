@@ -40,7 +40,7 @@ func NewMarket(provider StockProvider) *Market {
 // Fetch requests market data from the provider.
 // If download or data parsing fails Fetch populates 'market.errors'.
 func (market *Market) Fetch() (self *Market) {
-	self = market // <-- This ensures we return correct market after recover() from panic().
+	self = market
 	
 	marketData, err := market.provider.FetchMarket()
 	if err != nil {
