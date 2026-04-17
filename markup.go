@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2024 by Michael Dvorkin and contributors. All Rights Reserved.
+// Copyright (c) 2013-2026 by Michael Dvorkin and contributors. All Rights Reserved.
 // Use of this source code is governed by a MIT-style license that can
 // be found in the LICENSE file.
 
@@ -6,6 +6,7 @@ package mop
 
 import (
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/nsf/termbox-go"
@@ -57,6 +58,10 @@ func NewMarkup(profile *Profile) *Markup {
 	markup.tags[`lightcyan`] = termbox.ColorLightCyan
 	markup.tags[`lightgray`] = termbox.ColorLightGray
 
+	for i := 1; i <= 255; i++ {
+		markup.tags[strconv.Itoa(i)] = termbox.Attribute(i)
+	}
+
 	markup.tags[`right`] = termbox.ColorDefault // Termbox can combine attributes and a single color using bitwise OR.
 	markup.tags[`b`] = termbox.AttrBold         // Attribute = 1 << (iota + 4)
 	markup.tags[`u`] = termbox.AttrUnderline
@@ -69,6 +74,10 @@ func NewMarkup(profile *Profile) *Markup {
 	markup.tags[`header`] = markup.tags[profile.Colors.Header]
 	markup.tags[`time`] = markup.tags[profile.Colors.Time]
 	markup.tags[`default`] = markup.tags[profile.Colors.Default]
+
+	markup.tags[`custom1`] = termbox.Attribute(profile.Colors.Custom1)
+	markup.tags[`custom2`] = termbox.Attribute(profile.Colors.Custom2)
+	markup.tags[`custom3`] = termbox.Attribute(profile.Colors.Custom3)
 
 	markup.Foreground = markup.tags[profile.Colors.Default]
 

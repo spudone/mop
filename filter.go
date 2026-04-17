@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2024 by Michael Dvorkin and contributors. All Rights Reserved.
+// Copyright (c) 2013-2026 by Michael Dvorkin and contributors. All Rights Reserved.
 // Use of this source code is governed by a MIT-style license that can
 // be found in the LICENSE file.
 
@@ -63,6 +63,7 @@ func (filter *Filter) Apply(stocks []Stock) []Stock {
 		values["avgVolume"] = stringToNumber(stock.AvgVolume)
 		values["pe"] = stringToNumber(stock.PeRatio)
 		values["peX"] = stringToNumber(stock.PeRatioX)
+		values["currency"] = strings.TrimSpace(stock.Currency)
 		values["direction"] = stock.Direction // Remains int.
 
 		// Extract market from ticker
