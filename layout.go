@@ -245,6 +245,7 @@ func buildQuotesTemplate() *template.Template {
 {{if .Errors}}<loss>{{.Errors}}</>{{else}}
 {{end}}
 
+
 <header>{{.Header}}</>
 {{range.Stocks}}{{if ne .RowColor ""}}<{{.RowColor}}>{{end}}{{.Ticker}}{{.LastTrade}}{{.Change}}{{.ChangePct}}{{.Open}}{{.Low}}{{.High}}{{.Low52}}{{.High52}}{{.Volume}}{{.AvgVolume}}{{.PeRatio}}{{.Dividend}}{{.Yield}}{{.MarketCap}}</>{{if ne .PreOpenColor ""}}<{{.PreOpenColor}}>{{end}}{{.PreOpen}}</>{{if ne .AfterHoursColor ""}}<{{.AfterHoursColor}}>{{end}}{{.AfterHours}}</>
 {{end}}`
